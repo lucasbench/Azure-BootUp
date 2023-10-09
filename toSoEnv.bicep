@@ -1,267 +1,115 @@
-@description('Username for the Virtual Machine.')
+//define params
+@description('VM size')
+param vmSize string = 'Standard_B1s'
+param location string = resourceGroup().location
+@description('VM name Prefix')
+param vmName string = 'toso-vm'
+@description('Number of VMs')
+param vmCount int = 2
+@description('Admin username')
 param adminUsername string
-
-@description('Password for the Virtual Machine.')
-@minLength(12)
+@description('Admin password')
 @secure()
 param adminPassword string
+@description('Virtual network name')
+param vnetName string = 'toso-vnet1'
 
-@description('Unique DNS Name for the Public IP used to access the Virtual Machine.')
-param dnsLabelPrefix string = toLower('${vmName}-${uniqueString(resourceGroup().id, vmName)}')
+//defines vars
+var nics = 'toso-nic'
+var subnetName = 'subnet'
+var subnet0Name = 'subnet0'
+var subnet1Name = 'subnet1'
 
-@description('Name for the Public IP used to access the Virtual Machine.')
-param publicIpName string = 'vm1PublicIP'
-
-@description('Allocation method for the Public IP used to access the Virtual Machine.')
-@allowed([
-  'Dynamic'
-  'Static'
-])
-param publicIPAllocationMethod string = 'Dynamic'
-
-@description('SKU for the Public IP used to access the Virtual Machine.')
-@allowed([
-  'Basic'
-  'Standard'
-])
-param publicIpSku string = 'Basic'
-
-@description('The Windows version for the VM. This will pick a fully patched image of this given Windows version.')
-@allowed([
-  '2016-datacenter-gensecond'
-  '2016-datacenter-server-core-g2'
-  '2016-datacenter-server-core-smalldisk-g2'
-  '2016-datacenter-smalldisk-g2'
-  '2016-datacenter-with-containers-g2'
-  '2016-datacenter-zhcn-g2'
-  '2019-datacenter-core-g2'
-  '2019-datacenter-core-smalldisk-g2'
-  '2019-datacenter-core-with-containers-g2'
-  '2019-datacenter-core-with-containers-smalldisk-g2'
-  '2019-datacenter-gensecond'
-  '2019-datacenter-smalldisk-g2'
-  '2019-datacenter-with-containers-g2'
-  '2019-datacenter-with-containers-smalldisk-g2'
-  '2019-datacenter-zhcn-g2'
-  '2022-datacenter-azure-edition'
-  '2022-datacenter-azure-edition-core'
-  '2022-datacenter-azure-edition-core-smalldisk'
-  '2022-datacenter-azure-edition-smalldisk'
-  '2022-datacenter-core-g2'
-  '2022-datacenter-core-smalldisk-g2'
-  '2022-datacenter-g2'
-  '2022-datacenter-smalldisk-g2'
-])
-param OSVersion string = '2022-datacenter-azure-edition'
-
-@description('Size of the virtual machine.')
-param vmSize string = 'Standard_B1s'
-
-@description('Location for all resources.')
-param location string = resourceGroup().location
-
-@description('Name of the virtual machine.')
-param vmName string = 'ToSo-vm1'
-
-@description('Security Type of the Virtual Machine.')
-@allowed([
-  'Standard'
-  'TrustedLaunch'
-])
-param securityType string = 'TrustedLaunch'
-
-var storageAccountName = 'tosostorage'
-var nicName = 'ToSo-VMNic-vm1'
-var addressPrefix = '10.0.0.0/16'
-var subnetName = 'ToSo-Subnet'
-var subnetPrefix = '10.0.0.0/24'
-var virtualNetworkName = 'ToSo-VNET'
-var networkSecurityGroupName = 'ToSo-NSG'
-var securityProfileJson = {
-  uefiSettings: {
-    secureBootEnabled: true
-    vTpmEnabled: true
-  }
-  securityType: securityType
-}
-var extensionName = 'GuestAttestation'
-var extensionPublisher = 'Microsoft.Azure.Security.WindowsAttestation'
-var extensionVersion = '1.0'
-var maaTenantName = 'GuestAttestation'
-var maaEndpoint = substring('emptyString', 0, 0)
-
-resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
-  name: storageAccountName
+//define resources to loop through
+resource vmName_resource 'Microsoft.Compute/virtualMachines@2023-07-01' = [for i in range(0, vmCount): {
+  name: '${vmName}${i}'
   location: location
-  sku: {
-    name: 'Standard_LRS'
-  }
-  kind: 'Storage'
-}
-//create a var for the container name
-var containerName = 'to-so-images'
-//create a container inside the storage account
-resource container 'Microsoft.Storage/storageAccounts/blobServices/containers@2022-09-01' = {
-  name: '${storageAccount.name}/default/${containerName}'
-}
-
-resource publicIp 'Microsoft.Network/publicIPAddresses@2022-05-01' = {
-  name: publicIpName
-  location: location
-  sku: {
-    name: publicIpSku
-  }
   properties: {
-    publicIPAllocationMethod: publicIPAllocationMethod
-    dnsSettings: {
-      domainNameLabel: dnsLabelPrefix
+    osProfile: {
+      computerName: '${vmName}${i}'
+      adminUsername: adminUsername
+      adminPassword: adminPassword
+      windowsConfiguration: {
+        provisionVMAgent: true
+      }
+    }
+    hardwareProfile: {
+      vmSize: vmSize
+    }
+    storageProfile: {
+      imageReference: {
+        publisher: 'MicrosoftWindowsServer'
+        offer: 'WindowsServer'
+        sku: '2019-Datacenter'
+        version: 'latest'
+      }
+      osDisk: {
+        createOption: 'FromImage'
+      }
+      dataDisks: []
+    }
+    networkProfile: {
+      networkInterfaces: [
+        {
+          properties: {
+            primary: true
+          }
+          id: resourceId('Microsoft.Network/networkInterfaces', '${nics}${i}')
+        }
+      ]
     }
   }
-}
-
-resource networkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2022-05-01' = {
-  name: networkSecurityGroupName
-  location: location
-  properties: {
-    securityRules: [
-      {
-        name: 'default-allow-3389'
-        properties: {
-          priority: 1000
-          access: 'deny'
-          direction: 'Inbound'
-          destinationPortRange: '3389'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          sourceAddressPrefix: '*'
-          destinationAddressPrefix: '*'
-        }
-      }
-    ]
-  }
-}
-
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-05-01' = {
-  name: virtualNetworkName
+  dependsOn: [
+    vnet
+  ]
+}]
+//create a Vnet and subnets
+resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
+  name: vnetName
   location: location
   properties: {
     addressSpace: {
       addressPrefixes: [
-        addressPrefix
+        '10.40.0.0/22'
       ]
     }
     subnets: [
       {
-        name: subnetName
+        name: subnet0Name
         properties: {
-          addressPrefix: subnetPrefix
-          networkSecurityGroup: {
-            id: networkSecurityGroup.id
-          }
+          addressPrefix: '10.40.0.0/24'
+        }
+      }
+      {
+        name: subnet1Name
+        properties: {
+          addressPrefix: '10.40.1.0/24'
         }
       }
     ]
   }
 }
-
-resource nic 'Microsoft.Network/networkInterfaces@2022-05-01' = {
-  name: nicName
+//create nics
+resource nic 'Microsoft.Network/networkInterfaces@2023-05-01' = [for i in range(0, vmCount): {
+  name: '${nics}${i}'
   location: location
   properties: {
     ipConfigurations: [
       {
         name: 'ipconfig1'
         properties: {
-          privateIPAllocationMethod: 'Dynamic'
-          publicIPAddress: {
-            id: publicIp.id
-          }
           subnet: {
-            id: resourceId('Microsoft.Network/virtualNetworks/subnets', virtualNetworkName, subnetName)
+            id: resourceId('Microsoft.Network/virtualNetworks/subnets', vnetName, '${subnetName}${i}')
           }
+          privateIPAllocationMethod: 'Dynamic'
         }
       }
     ]
   }
   dependsOn: [
-
-    virtualNetwork
+    vnet
   ]
-}
-
-resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' = {
-  name: vmName
-  location: location
-  properties: {
-    hardwareProfile: {
-      vmSize: vmSize
-    }
-    osProfile: {
-      computerName: vmName
-      adminUsername: adminUsername
-      adminPassword: adminPassword
-    }
-    storageProfile: {
-      imageReference: {
-        publisher: 'MicrosoftWindowsServer'
-        offer: 'WindowsServer'
-        sku: OSVersion
-        version: 'latest'
-      }
-      osDisk: {
-        createOption: 'FromImage'
-        managedDisk: {
-          storageAccountType: 'StandardSSD_LRS'
-        }
-      }
-      dataDisks: [
-        {
-          diskSizeGB: 1023
-          lun: 0
-          createOption: 'Empty'
-        }
-      ]
-    }
-    networkProfile: {
-      networkInterfaces: [
-        {
-          id: nic.id
-        }
-      ]
-    }
-    diagnosticsProfile: {
-      bootDiagnostics: {
-        enabled: true
-        storageUri: storageAccount.properties.primaryEndpoints.blob
-      }
-    }
-    securityProfile: ((securityType == 'TrustedLaunch') ? securityProfileJson : null)
-  }
-}
-
-
-resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2022-03-01' = if ((securityType == 'TrustedLaunch') && ((securityProfileJson.uefiSettings.secureBootEnabled == true) && (securityProfileJson.uefiSettings.vTpmEnabled == true))) {
-  parent: vm
-  name: extensionName
-  location: location
-  properties: {
-    publisher: extensionPublisher
-    type: extensionName
-    typeHandlerVersion: extensionVersion
-    autoUpgradeMinorVersion: true
-    enableAutomaticUpgrade: true
-    settings: {
-      AttestationConfig: {
-        MaaSettings: {
-          maaEndpoint: maaEndpoint
-          maaTenantName: maaTenantName
-        }
-      }
-    }
-  }
-}
-
-output hostname string = publicIp.properties.dnsSettings.fqdn
+}]
 
 
 //Deploy
