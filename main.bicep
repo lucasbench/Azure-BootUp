@@ -58,7 +58,7 @@ var vNetAddressPrefix = '10.0.0.0/16'
 var vNetSubnetName = 'BackendSubnet'
 var vNetSubnetAddressPrefix = '10.0.0.0/24'
 
-var vmStorageAccountType = 'Premium_LRS'
+var vmStorageAccountType = 'Standard_LRS'
 var extensionName = 'GuestAttestation'
 var extensionPublisher = 'Microsoft.Azure.Security.WindowsAttestation'
 var extensionVersion = '1.0'
