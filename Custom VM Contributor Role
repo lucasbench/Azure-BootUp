@@ -1,0 +1,22 @@
+{
+    "properties": {
+        "roleName": "Virtual Machine Role1",
+        "description": "Can Stop, Start, change size of VMs",
+        "assignableScopes": [
+            "/subscriptions/02af913d-5b42-442e-91a0-cb68e34470ca"
+        ],
+        "permissions": [
+            {
+                "actions": [
+                    "Microsoft.Compute/virtualMachines/start/action",
+                    "Microsoft.Compute/virtualMachines/powerOff/action",
+                    "Microsoft.Compute/virtualMachines/deallocate/action",
+                    "Microsoft.Compute/disks/write"
+                ],
+                "notActions": [],
+                "dataActions": [],
+                "notDataActions": []
+            }
+        ]
+    }
+}
