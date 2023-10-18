@@ -1,0 +1,11 @@
+Flask
+gunicorn
+requests
+Werkzeug
+azure-storage-blob
+azure-identity
+azure-mgmt-resource
+azure-mgmt-storage
+filetype
+azure-mgmt-cognitiveservices
+azure-cognitiveservices-vision-contentmoderator
