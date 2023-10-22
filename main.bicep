@@ -114,8 +114,8 @@ resource project_vm_1_InstallWebServer 'Microsoft.Compute/virtualMachines/extens
     project_vm_1
   ]
 }]
-//Create VMs (1-3)
-resource project_vm_1 'Microsoft.Compute/virtualMachines@2021-11-01' = [for i in range(1, 2): {
+//Create VMs (0-2)
+resource project_vm_1 'Microsoft.Compute/virtualMachines@2021-11-01' = [for i in range(0, 2): {
   name: '${projectName}-vm${i}'
   location: location
   zones: [
